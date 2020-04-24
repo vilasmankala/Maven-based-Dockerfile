@@ -1,9 +1,19 @@
-FROM golang
+FROM alpine/git as clone
+ARG url 
+WORKDIR /app
+RUN git clone ${url} 
 
-ADD . /go/src/spinnaker.io/demo/k8s-demo
+FROM maven:3.5-jdk-8-alpine as build
+ARG project 
+WORKDIR /app
+COPY --from=clone /app/${project} /app
+RUN mvn install
 
-RUN go install spinnaker.io/demo/k8s-demo
-
-ADD ./content /content
-
-ENTRYPOINT /go/bin/k8s-demo
+FROM openjdk:8-jre-alpine
+ARG artifactid
+ARG version
+ENV artifact ${artifactid}-${version}.jar 
+WORKDIR /app
+COPY --from=build /app/target/${artifact} /app
+EXPOSE 8081
+CMD ["java -jar ${artifact}"]
